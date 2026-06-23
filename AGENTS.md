@@ -31,3 +31,17 @@ ReadinessScore = 0.412×DigitalMaturity + 0.284×ESGStrategy
 - src/data/weights.json — scoring model weights
 - src/data/recommendations.json — AI recommendation templates
 - src/lib/scoring.ts — scoring algorithm
+## Current State (Phase 2)
+- Project scaffold: Next.js 14, App Router, Tailwind, Recharts
+- Data files ready: questions.json, weights.json
+- Scoring engine: src/lib/scoring.ts (calculateReadinessScore,
+  calculateCO2Impact, calculateEconomicEffect)
+- API endpoint: src/app/api/score/route.ts (POST)
+- Assessment page: src/app/assessment/page.tsx (full questionnaire flow)
+- Results page: src/app/results/page.tsx (score gauge, barrier chart)
+- Components: QuestionCard, ProgressBar, ScoreGauge, BarrierChart
+## Decisions Made
+- sessionStorage used to pass score data between /assessment and /results
+- Green/emerald color scheme (#059669 primary)
+- Questions grouped in 4 blocks: general, digital_maturity, barriers, readiness
+- Score normalization: all inputs mapped to 0-1 before applying weights
