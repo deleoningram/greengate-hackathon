@@ -1,0 +1,40 @@
+{
+    "intercept": 0.452,
+    "factors": {
+        "digital_maturity": {
+            "beta": 0.412,
+            "label": "Цифровая зрелость"
+        },
+        "esg_strategy": {
+            "beta": 0.284,
+            "label": "ESG-стратегия"
+        },
+        "certification": {
+            "beta": 0.198,
+            "label": "Экосертификация"
+        },
+        "enterprise_size": {
+            "beta": 0.154,
+            "label": "Размер предприятия"
+        },
+        "secondary_volume": {
+            "beta": 0.112,
+            "label": "Объём вторсырья"
+        }
+    },
+    "thresholds": {
+        "low": {
+            "max": 2.5,
+            "label": "Низкая готовность"
+        },
+        "medium": {
+            "min": 2.5,
+            "max": 3.5,
+            "label": "Средняя готовность"
+        },
+        "high": {
+            "min": 3.5,
+            "label": "Высокая готовность"
+        }
+    }
+}
