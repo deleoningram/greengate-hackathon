@@ -42,7 +42,7 @@ export interface AIClientOptions {
 // Constants
 // ---------------------------------------------------------------------------
 
-const DEFAULT_MODEL = 'gpt-4o-mini';
+const DEFAULT_MODEL = 'deepseek-chat';
 const DEFAULT_TEMPERATURE = 0.3;
 const DEFAULT_TIMEOUT_MS = 30_000;
 
@@ -139,10 +139,10 @@ export async function generateRecommendations(
   assessmentData: AssessmentData,
   options: AIClientOptions = {},
 ): Promise<AIRecommendations> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
     throw new Error(
-      'OPENAI_API_KEY environment variable is not set. ' +
+      'DEEPSEEK_API_KEY environment variable is not set. ' +
         'Set it in .env.local or your deployment environment.',
     );
   }
@@ -156,7 +156,7 @@ export async function generateRecommendations(
 
   try {
     const response = await fetch(
-      'https://api.openai.com/v1/chat/completions',
+      'https://api.deepseek.com/v1/chat/completions',
       {
         method: 'POST',
         headers: {
