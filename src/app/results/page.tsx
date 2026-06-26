@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { ScoreGauge } from '@/components/ScoreGauge';
 import { BarrierChart } from '@/components/BarrierChart';
+import { RecommendationBlock } from '@/components/RecommendationBlock';
 import type { ReadinessLevel, FactorScores } from '@/lib/scoring';
+import type { AIRecommendations } from '@/lib/ai-client';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,6 +43,12 @@ type PageState =
   | { status: 'ready'; data: ResultsData }
   | { status: 'error'; message: string };
 
+type RecState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ready'; data: AIRecommendations }
+  | { status: 'error'; message: string };
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -67,11 +75,270 @@ function formatTons(value: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// Fetch recommendations
+// ---------------------------------------------------------------------------
+
+async function fetchRecommendations(
+  data: ResultsData,
+): Promise<AIRecommendations> {
+  const sessionId =
+    typeof window !== 'undefined'
+      ? sessionStorage.getItem('greengate_session_id') ?? crypto.randomUUID()
+      : 'server';
+
+  if (typeof window !== 'undefined' && !sessionStorage.getItem('greengate_session_id')) {
+    sessionStorage.setItem('greengate_session_id', sessionId);
+  }
+
+  const response = await fetch('/api/recommend', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-id': sessionId,
+    },
+    body: JSON.stringify({
+      score: data.score,
+      level: data.level,
+      factorScores: data.factorScores,
+      topBarriers: data.topBarriers,
+      co2Impact: data.co2Impact,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(
+      (errorBody as { error?: string }).error ??
+        `Ошибка сервера: ${response.status}`,
+    );
+  }
+
+  return response.json() as Promise<AIRecommendations>;
+}
+
+// ---------------------------------------------------------------------------
+// Recommendations section
+// ---------------------------------------------------------------------------
+
+function RecommendationsSection({
+  recState,
+  resultsData,
+  onFetch,
+}: {
+  recState: RecState;
+  resultsData: ResultsData;
+  onFetch: (state: RecState) => void;
+}) {
+  const handleFetch = useCallback(async () => {
+    onFetch({ status: 'loading' });
+    try {
+      const result = await fetchRecommendations(resultsData);
+      sessionStorage.setItem(
+        'greengate_recommendations',
+        JSON.stringify(result),
+      );
+      onFetch({ status: 'ready', data: result });
+    } catch (error) {
+      onFetch({
+        status: 'error',
+        message:
+          (error as Error).message ||
+          'Не удалось загрузить рекомендации. Попробуйте позже.',
+      });
+    }
+  }, [resultsData, onFetch]);
+
+  // ---- Idle: show button ----
+
+  if (recState.status === 'idle') {
+    return (
+      <section className="rounded-2xl bg-white p-6 shadow-md">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
+            <svg
+              className="h-7 w-7 text-emerald-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
+              />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              AI-рекомендации
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Получите персонализированный план действий на основе ваших
+              результатов
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleFetch}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:bg-emerald-700 hover:shadow-lg active:scale-[0.98]"
+          >
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
+              />
+            </svg>
+            Получить AI-рекомендации
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  // ---- Loading ----
+
+  if (recState.status === 'loading') {
+    return (
+      <section className="rounded-2xl bg-white p-6 shadow-md">
+        <div className="flex flex-col items-center gap-4 py-6">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
+          <p className="text-sm font-medium text-gray-600">
+            AI анализирует ваши результаты...
+          </p>
+          <p className="text-xs text-gray-400">
+            Это может занять до 30 секунд
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  // ---- Error ----
+
+  if (recState.status === 'error') {
+    return (
+      <section className="rounded-2xl bg-white p-6 shadow-md">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
+            <svg
+              className="h-7 w-7 text-amber-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+              />
+            </svg>
+          </div>
+          <p className="text-sm text-gray-700">{recState.message}</p>
+          <button
+            type="button"
+            onClick={handleFetch}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:bg-emerald-700 active:scale-[0.98]"
+          >
+            Попробовать снова
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  // ---- Ready ----
+
+  const { data: recs } = recState;
+
+  return (
+    <>
+      {/* Summary */}
+      <section className="rounded-2xl bg-white p-6 shadow-md">
+        <h2 className="mb-3 text-lg font-semibold text-gray-900">
+          Сводка AI-анализа
+        </h2>
+        <p className="text-sm leading-relaxed text-gray-700">
+          {recs.summary}
+        </p>
+        {recs.estimated_co2_reduction && (
+          <div className="mt-3 rounded-lg bg-emerald-50 px-4 py-3">
+            <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+              CO₂-эффект
+            </span>
+            <p className="mt-0.5 text-sm text-emerald-900">
+              {recs.estimated_co2_reduction}
+            </p>
+          </div>
+        )}
+      </section>
+
+      {/* Recommendations */}
+      <section className="rounded-2xl bg-white p-6 shadow-md">
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">
+          Рекомендации
+        </h2>
+        <RecommendationBlock recommendations={recs.recommendations} />
+      </section>
+
+      {/* Next steps */}
+      {recs.next_steps.length > 0 && (
+        <section className="rounded-2xl bg-white p-6 shadow-md">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            Следующие шаги
+          </h2>
+          <ol className="list-inside list-decimal space-y-2">
+            {recs.next_steps.map((step, i) => (
+              <li key={i} className="text-sm leading-relaxed text-gray-700">
+                {step}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {/* Refresh button */}
+      <div className="flex justify-center">
+        <button
+          type="button"
+          onClick={handleFetch}
+          className="inline-flex items-center gap-2 rounded-xl border border-emerald-600 bg-white px-5 py-2.5 text-sm font-semibold text-emerald-700 shadow-sm transition-all duration-200 hover:bg-emerald-50 active:scale-[0.98]"
+        >
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          Обновить рекомендации
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 
 export default function ResultsPage() {
   const [state, setState] = useState<PageState>({ status: 'loading' });
+  const [recState, setRecState] = useState<RecState>({ status: 'idle' });
 
   useEffect(() => {
     try {
@@ -97,6 +364,19 @@ export default function ResultsPage() {
       }
 
       setState({ status: 'ready', data });
+
+      // Restore cached recommendations from sessionStorage
+      try {
+        const cached = sessionStorage.getItem('greengate_recommendations');
+        if (cached) {
+          const parsed = JSON.parse(cached) as AIRecommendations;
+          if (parsed.summary && Array.isArray(parsed.recommendations)) {
+            setRecState({ status: 'ready', data: parsed });
+          }
+        }
+      } catch {
+        // Ignore cache errors
+      }
     } catch {
       setState({
         status: 'error',
@@ -262,30 +542,15 @@ export default function ResultsPage() {
           </section>
         </div>
 
+        {/* AI Recommendations section */}
+        <RecommendationsSection
+          recState={recState}
+          resultsData={data}
+          onFetch={setRecState}
+        />
+
         {/* Action buttons */}
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <button
-            type="button"
-            disabled
-            title="Рекомендации на основе ИИ будут доступны в следующей фазе проекта"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-300 px-6 py-3 text-sm font-semibold text-gray-500 cursor-not-allowed"
-          >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
-              />
-            </svg>
-            Получить рекомендации
-          </button>
-
           <Link
             href="/assessment"
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-600 bg-white px-6 py-3 text-sm font-semibold text-emerald-700 shadow-sm transition-all duration-200 hover:bg-emerald-50 active:scale-[0.98]"
