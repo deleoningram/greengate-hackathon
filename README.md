@@ -1,36 +1,139 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GreenGate — AI-оценка готовности к обмену вторсырьём
 
-## Getting Started
+GreenGate — это AI-инструмент, который за несколько минут оценивает готовность производственного предприятия к участию в цифровых платформах обмена вторичным сырьём, выявляет слабые места и выдаёт персональный план действий.
 
-First, run the development server:
+Проект создан в рамках хакатона **Kodik Launchpad 2026** в студенческом треке.
+
+**Команда:** Chat4clysm  
+**Состав:** Дмитрий (разработка), Владимир (продукт)  
+**Платформа:** Kodik IDE + Kodik Hosting
+
+---
+
+## О проекте
+
+Российская промышленность ежегодно образует миллионы тонн вторичных ресурсов, но лишь малая доля возвращается в оборот. Одно из главных препятствий — неготовность предприятий к работе с цифровыми платформами обмена.
+
+GreenGate решает эту проблему с помощью:
+
+- **Научной скоринговой модели** на основе эмпирического исследования 94 предприятий (R² = 0.54)
+- **Интерактивного опросника** из 4 блоков (общие данные, цифровая зрелость, барьеры, готовность)
+- **AI-рекомендаций** — персонализированная дорожная карта с приоритетами, сроками и ожидаемым эффектом
+- **KPI-дашборда** для мониторинга ESG-эффекта: сокращение CO₂, экономия, объём вторсырья в обороте
+
+---
+
+## Ключевые возможности
+
+- **Оценка готовности** — расчёт индекса по 5 факторам: цифровая зрелость, ESG-стратегия, сертификация ISO 14001, размер предприятия, объём вторсырья
+- **Барьерный анализ** — выявление топ-5 препятствий (затраты, стандартизация данных, конфиденциальность, ERP-интеграция, доверие)
+- **AI-дорожная карта** — генерация конкретных шагов с помощью LLM, с фолбэком на статические рекомендации
+- **ESG-дашборд** — визуализация CO₂-эффекта, экономии и ключевых метрик платформы
+- **Без регистрации** — данные хранятся локально в браузере, не передаются на сервер
+
+---
+
+## Технологический стек
+
+| Компонент | Технология |
+|-----------|------------|
+| Фреймворк | Next.js 14 (App Router) |
+| Язык | TypeScript (strict) |
+| Стили | Tailwind CSS |
+| Графики | Recharts |
+| AI | OpenAI-совместимый API |
+| Данные | JSON-файлы + sessionStorage |
+| Деплой | Kodik Hosting |
+
+---
+
+## Быстрый старт
 
 ```bash
+# Установка зависимостей
+npm install
+
+# Запуск dev-сервера
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Откройте [http://localhost:3000](http://localhost:3000) в браузере.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Переменные окружения
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Создайте файл `.env.local`:
 
-## Learn More
+```
+OPENAI_API_KEY=your_api_key_here
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Структура проекта
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+greengate/
+├── src/
+│   ├── app/
+│   │   ├── page.tsx                  # Лендинг
+│   │   ├── assessment/page.tsx        # Опросник
+│   │   ├── results/page.tsx           # Результаты
+│   │   ├── dashboard/page.tsx         # KPI-дашборд
+│   │   └── api/
+│   │       ├── score/route.ts         # Скоринг
+│   │       └── recommend/route.ts     # AI-рекомендации
+│   ├── components/
+│   │   ├── Navbar.tsx
+│   │   ├── Footer.tsx
+│   │   ├── QuestionCard.tsx
+│   │   ├── ProgressBar.tsx
+│   │   ├── ScoreGauge.tsx
+│   │   ├── BarrierChart.tsx
+│   │   ├── KPICard.tsx
+│   │   └── RecommendationBlock.tsx
+│   ├── data/
+│   │   ├── questions.json
+│   │   ├── weights.json
+│   │   ├── recommendations.json
+│   │   └── kpi-definitions.json
+│   ├── lib/
+│   │   ├── scoring.ts                 # Алгоритм скоринга
+│   │   ├── ai-client.ts               # Обёртка LLM API
+│   │   └── co2-calculator.ts          # Расчёт CO₂
+│   └── styles/
+│       └── globals.css
+├── AGENTS.md                           # Контекст для Kodik AI-агента
+└── package.json
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Скоринговая модель
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Оценка готовности рассчитывается по формуле:
+
+```
+Score = 0.412 × ЦифроваяЗрелость + 0.284 × ESGСтратегия
+      + 0.198 × Сертификация + 0.154 × РазмерПредприятия
+      + 0.112 × ОбъёмВторсырья + 0.452
+```
+
+Все входные параметры нормализуются к шкале 0–1.
+
+**Уровни готовности:**
+- Низкая (< 2.5)
+- Средняя (2.5–3.5)
+- Высокая (> 3.5)
+
+Модель основана на регрессионном анализе 94 производственных предприятий (R² = 0.54).
+
+---
+
+## Хакатон
+
+**Kodik Launchpad 2026** — хакатон на платформе Kodik.  
+**Трек:** Student  
+**Бюджет:** 250 кредитов  
+**Даты:** 22 июня — 5 июля 2026
+
+Проект полностью разработан в Kodik IDE с использованием AI-агента для генерации кода, рефакторинга и отладки.
